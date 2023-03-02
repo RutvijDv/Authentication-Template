@@ -9,7 +9,7 @@ const {
   getPasswordByEmail,
   updatePassword,
 } = require("../service/user.service");
-const { sendMail } = require("../service/mail.service");
+const sendMail = require("../service/mail.service");
 const { salt_rounds } = require("../config/auth.config");
 
 //Register new User
@@ -24,13 +24,12 @@ async function register(req, res) {
       res.status(401).json({ error: "User already created" });
       return;
     }
-
-    user.password = bcrypt.hashSync(user.password, salt_rounds);
+    user.password = await bcrypt.hash(user.password, parseInt(process.env.BCRYPT_SALT_ROUNDS));
 
     //Sign Token using email and password.
     const token = jwt.sign(user, secret, { expiresIn: "10m" });
-
-    await sendMail(user.firstName, user.email, token, "activation");
+    const url = process.env.DOMAIN + '/auth?token=' + token;
+    await sendMail(user.firstName, user.email, url, "activation");
 
     res.status(200).json({ message: "Mail sent to " + user.email });
   } catch (err) {

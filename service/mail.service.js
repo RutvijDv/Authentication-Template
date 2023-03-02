@@ -1,46 +1,55 @@
-const nodemailer = require("nodemailer");
-const { mailUsername, mailPassword } = require("../config/mail.config");
+const nodemailer = require('nodemailer');
+const handlebars = require('handlebars');
+const SibV3 = require('sib-api-v3-sdk');
 
-const sendMail = async (email, token, type) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    auth: {
-      user: mailUsername, // generated ethereal user
-      pass: mailPassword, // generated ethereal password
-    },
-  });
+const fs = require('fs');
 
-  let body, subject;
+const sendMail = async (username, receiver, url, type_of_action, action_description = " ") => {
+  SibV3.ApiClient.instance.authentications['api-key'].apiKey = process.env.SENDINBLUE_API_KEY;
 
-  if (type == "activation") {
-    subject = "Activation";
-    body =
-      '<p>Click <a href="https://riacsvnit.in/auth/email?token=' +
-      token +
-      '">here</a> to activate your account</p>';
-  } else if (type == "forget") {
-    subject = "Reset Password";
-    body =
-      '<p>Click <a href="https://riacsvnit.in/auth/reset?token=' +
-      token +
-      '">here</a> to reset your password</p>';
+  let response = {
+    acceptedMail: [],
+    err: "NULL"
   }
 
-  const mailOptions = {
-    from: "noreply <" + mailUsername + ">",
-    to: email,
-    subject: subject,
-    html: body,
-  };
-
-  //Activation mail
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Email sent: " + info.response);
-    }
-  });
+  try {
+    const html = fs.readFileSync(__dirname + '\\pages\\emailTemplate.html', { encoding: 'utf-8' });
+    const template = handlebars.compile(html);
+    const replacements = {
+      username,
+      type_of_action,
+      action_description,
+      address: "Surat | Ahmedabad | Lucknow",
+      url
+    };
+    const htmlToSend = template(replacements);
+    const res = await new SibV3.TransactionalEmailsApi().sendTransacEmail({
+      'subject': type_of_action,
+      'sender': {
+        'email': process.env.NODEMAILER_EMAIL,
+        'name': process.env.NODEMAILER_SENDER_NAME,
+      },
+      'replyTo': {
+        'email': process.env.NODEMAILER_REPLY_TO_EMAIL,
+        'name': process.env.NODEMAILER_REPLY_TO_NAME,
+      },
+      'to': [{
+        'name': username,
+        'email': receiver,
+      }],
+      'htmlContent': htmlToSend,
+      'params': {
+        'bodyMessage': action_description
+      }
+    });
+    console.log(res)
+    return response;
+  } catch (error) {
+    response.err = error;
+    console.log(error)
+    return response;
+  }
 };
+
 
 module.exports = sendMail;
