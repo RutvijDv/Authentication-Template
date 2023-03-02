@@ -4,7 +4,8 @@ const {
   register,
   create,
   login,
-  forget,
+  forgetPasswordRequest,
+  forgetPassword,
   reset,
 } = require("../controller/auth.controller");
 const verifyToken = require("../middleware/jwtAuth");
@@ -12,7 +13,8 @@ const validate = require("../middleware/validate.middleware");
 const {
   registerSchema,
   loginSchema,
-  forgetSchema,
+  forgetPasswordRequestSchema,
+  forgetPasswordSchema,
   resetSchema,
 } = require("../util/joi.schema.util");
 
@@ -24,7 +26,12 @@ router.get("/jwtverify", create);
 router.post("/login", validate(loginSchema), login);
 
 //Forget and Reset Routes
-router.post("/forget", validate(forgetSchema), forget);
 router.put("/reset", verifyToken, validate(resetSchema), reset);
+router.post(
+  "/forgetpasswordrequest",
+  validate(forgetPasswordRequestSchema),
+  forgetPasswordRequest
+);
+router.put("/forgetpassword", validate(forgetPasswordSchema), forgetPassword);
 
 module.exports = router;

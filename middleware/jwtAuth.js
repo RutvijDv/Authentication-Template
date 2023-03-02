@@ -9,13 +9,20 @@ async function verifyToken(req, res, next) {
 
   //No Token found
   if (!token) {
-    res.status(403).json({ error: "Bad Credentials" });
+    res.status(401).json({ error: "Bad Credentials" });
     return;
   }
 
   try {
     //Decoding Token
-    const decoded = jwt.verify(token, secret);
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (err) {
+      res.status(401).json({ error: "Invalid Token" });
+      return;
+    }
 
     const userId = decoded.id;
     const user = await getUserById(userId);

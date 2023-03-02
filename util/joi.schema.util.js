@@ -13,8 +13,12 @@ const registerSchema = Joi.object({
   phone: Joi.number().required(),
 });
 
-const forgetSchema = Joi.object({
+const forgetPasswordRequestSchema = Joi.object({
   email: Joi.string().email().required(),
+});
+
+const forgetPasswordSchema = Joi.object({
+  password: Joi.string().min(8).max(40).required(),
 });
 
 const resetSchema = Joi.object({
@@ -31,7 +35,8 @@ const updateProfileSchema = Joi.object({
 module.exports = {
   loginSchema,
   registerSchema,
-  forgetSchema,
+  forgetPasswordRequestSchema,
+  forgetPasswordSchema,
   resetSchema,
   updateProfileSchema,
 };

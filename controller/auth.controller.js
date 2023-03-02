@@ -24,14 +24,17 @@ async function register(req, res) {
       res.status(401).json({ error: "User already created" });
       return;
     }
-    user.password = await bcrypt.hash(user.password, parseInt(process.env.BCRYPT_SALT_ROUNDS));
+    user.password = await bcrypt.hash(
+      user.password,
+      parseInt(process.env.BCRYPT_SALT_ROUNDS)
+    );
 
     //Sign Token using email and password.
     const token = jwt.sign(user, secret, { expiresIn: "10m" });
-    const url = process.env.DOMAIN + '/auth?token=' + token;
+    const url = process.env.DOMAIN + "/auth/create?token=" + token;
     await sendMail(user.firstName, user.email, url, "activation");
 
-    res.status(200).json({ message: "Mail sent to " + user.email });
+    res.status(200).json({ msg: "Mail sent to " + user.email });
   } catch (err) {
     console.log(err);
     res.status(500).json({ error: "Server Error" });
@@ -44,13 +47,19 @@ async function create(req, res) {
 
   //No Token found
   if (!token) {
-    res.status(403).json({ error: "Bad Credentials" });
+    res.status(401).json({ error: "Bad Credentials" });
     return;
   }
 
   try {
     //Decoding activation token
-    const decoded = jwt.verify(token, secret);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (err) {
+      res.status(401).json({ error: "Invalid Token" });
+      return;
+    }
 
     const email = decoded.email;
 
@@ -107,35 +116,6 @@ async function login(req, res) {
   }
 }
 
-//Forget Password
-async function forget(req, res) {
-  try {
-    const email = req.body.email;
-
-    const userExists = await doesUserExistByEmail(email);
-
-    if (!userExists) {
-      console.log("not found");
-
-      res.status(404).json({ error: "No user found" });
-      return;
-    }
-
-    const user = await getUserByEmail(email);
-
-    const id = user.id;
-
-    //Signing Token using user's email and id
-    const token = jwt.sign({ email, id }, secret, { expiresIn: "10m" });
-
-    sendMail(user.firstName, email, token, "forget");
-
-    res.sendStatus(200);
-  } catch (err) {
-    res.status(500).json({ error: "Server Error" });
-  }
-}
-
 //Reset Password
 async function reset(req, res) {
   try {
@@ -156,7 +136,82 @@ async function reset(req, res) {
     //Update new Password
     await updatePassword(id, newPassword);
 
-    res.status(201).json({ message: "password has been reset" });
+    res.status(200).json({ msg: "password has been reset" });
+  } catch (err) {
+    res.status(500).json({ error: "Server Error" });
+  }
+}
+
+//Forget Password
+async function forgetPasswordRequest(req, res) {
+  try {
+    const email = req.body.email;
+
+    const userExists = await doesUserExistByEmail(email);
+
+    if (!userExists) {
+      console.log("not found");
+
+      res.status(404).json({ error: "No user found" });
+      return;
+    }
+
+    const user = await getUserByEmail(email);
+
+    const id = user.id;
+
+    //Signing Token using user's email and id
+    const token = jwt.sign({ email, id }, secret, { expiresIn: "10m" });
+    const url = process.env.DOMAIN + "/auth/forgetpassword?token=" + token;
+
+    sendMail(user.firstName, email, url, "forget");
+
+    res.status(200).json({ msg: "Mail sent to " + user.email + " for Reset" });
+  } catch (err) {
+    res.status(500).json({ error: "Server Error" });
+  }
+}
+
+//Forget Password
+async function forgetPassword(req, res) {
+  const token = req.query.jwt;
+
+  //No Token found
+  if (!token) {
+    res.status(401).json({ error: "Bad Credentials" });
+    return;
+  }
+
+  try {
+    const newPassword = req.body.password;
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (err) {
+      console.log(err);
+      res.status(401).json({ error: "Invalid Token" });
+      return;
+    }
+
+    const email = decoded.email;
+
+    const userExists = await doesUserExistByEmail(email);
+
+    if (!userExists) {
+      console.log("not found");
+
+      res.status(404).json({ error: "No user found" });
+      return;
+    }
+
+    const user = await getUserByEmail(email);
+    const id = user.id;
+
+    //Update new Password
+    await updatePassword(id, newPassword);
+
+    res.status(200).json({ msg: "password has been reset" });
   } catch (err) {
     res.status(500).json({ error: "Server Error" });
   }
@@ -166,6 +221,7 @@ module.exports = {
   register,
   create,
   login,
-  forget,
+  forgetPasswordRequest,
+  forgetPassword,
   reset,
 };
